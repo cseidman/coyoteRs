@@ -8,54 +8,102 @@ use std::borrow::Borrow;
 struct Parser {
     current: Token,
     previous: Token,
-    hadError: bool
+    hadError: bool,
+    panicMode: bool
 }
 
-fn advance(parser: &mut Parser, scanner: &mut Scanner) {
+struct Compiler {
+    scanner: Scanner,
+    parser: Parser,
+    chunk: Chunk
+}
 
-    use TokenType::* ;
-    parser.previous = parser.current.clone() ;
+impl Compiler {
+    fn advance(&mut self) {
+        use TokenType::*;
+        self.parser.previous = self.parser.current.clone();
 
-    loop {
-        parser.current = scanToken(scanner);
-        if parser.current.toktype != T_ERROR {
-            break ;
+        loop {
+            self.parser.current = self.scanner.scanToken();
+            if self.parser.current.toktype != T_ERROR {
+                break;
+            }
+
+            let mut msg = self.parser.current.name.clone();
+            self.errorAtCurrent(msg.as_str());
         }
-        errorAtCurrent(parser);
     }
-}
+    fn consume(&mut self, toktype: TokenType, message: &str) {
+        if self.parser.current.toktype == toktype {
+            self.advance();
+            return;
+        }
 
-pub fn compile(source: String, chunk: &mut Chunk) -> bool {
-    use TokenType::* ;
-    let mut scanner = newScanner(source) ;
-    let mut parser = Parser {
-        current: makeToken(&scanner,T_START),
-        previous: makeToken(&scanner,T_START),
-        hadError: false
-    };
-    advance(&mut parser, &mut scanner) ;
-    expression() ;
-    consume(T_EOF, "Expect end of expression") ;
+        self.errorAtCurrent(message);
+    }
+    fn expression(&mut self) {
 
-    return true ;
-}
-
-fn errorAtCurrent(parser: &mut Parser) {
-    errorAt(parser, &parser.current.name);
-}
-
-fn errorAt (parser: &mut Parser, message: &str) {
-    use TokenType::* ;
-    io::stderr().write_all(b"[line %d] Error", &parser.current.line);
-
-    if parser.current.toktype == T_EOF {
-        io::stderr().write_all(b" at end");
-    } else if parser.current.toktype == T_ERROR {
-        // Nothing.
-    } else {
-        io::stderr().write_all(b" at '%.*s'", &parser.current.name);
     }
 
-    io::stderr().write_all(b": %s\n", message);
-    parser.hadError = true;
+    fn errorAtCurrent(&mut self, message: &str) {
+        self.errorAt(message);
+    }
+
+    fn errorAt(&mut self,message: &str) {
+
+        if self.parser.panicMode {return;}
+        self.parser.panicMode = true;
+
+        use TokenType::* ;
+        io::stderr().write_all(format!("[line {}] Error", &self.parser.current.line).as_bytes());
+
+        if self.parser.current.toktype == T_EOF {
+            io::stderr().write_all(b" at end");
+        } else if self.parser.current.toktype == T_ERROR {
+            // Nothing.
+        } else {
+            io::stderr().write_all(format!(" at '{}'", &self.parser.current.name).as_bytes());
+        }
+
+        io::stderr().write_all( format!(": {}\n", message).as_bytes());
+        self.parser.hadError = true;
+    }
+
+    fn emitByte(&mut self, byte: u8) {
+        self.chunk.writeChunk(byte, self.parser.previous.line);
+    }
+
 }
+
+pub fn compile(source: String, chunk: Chunk) -> bool {
+
+    let scanner = newScanner(source);
+
+    let mut compiler = Compiler {
+        scanner,
+        parser: Parser {
+            current: Token{
+                name: "Start".to_string(),
+                toktype: TokenType::T_START,
+                line: 0
+            },
+            previous: Token{
+                name: "Start".to_string(),
+                toktype: TokenType::T_START,
+                line: 0
+            },
+            hadError: false,
+            panicMode: false
+        },
+        chunk
+    } ;
+
+    use TokenType::* ;
+
+    compiler.advance() ;
+    compiler.expression() ;
+    compiler.consume(T_EOF, "Expect end of expression") ;
+
+    return !compiler.parser.hadError;
+}
+

@@ -61,200 +61,197 @@ pub fn newScanner(source: String) -> Scanner {
     }
 }
 
-fn advance(scanner: &mut Scanner) -> char {
-    scanner.current+1 ;
-    return scanner.code[scanner.current-1] ;
-}
-
-fn cmatch(scanner: &mut Scanner, expected: char) -> bool {
-    if isAtEnd(scanner) {
-        return false ;
-    }
-    if scanner.code[scanner.current] != expected {
-        return false ;
-    }
-    scanner.current += 1 ;
-    return true ;
-}
-
-fn peek(scanner: &Scanner) -> char {
-    let current = scanner.current ;
-    return scanner.code[current] ;
-}
-
-fn peekNext(scanner: &Scanner) -> char {
-    if isAtEnd(scanner) {
-        return '\0' ;
-    }
-    let current = scanner.current+1 ;
-    return scanner.code[current] ;
-}
-
-pub fn scanToken(scanner: &mut Scanner) -> Token {
-
-    skipWhitespace(scanner);
-
-    scanner.start = scanner.current  ;
-    if isAtEnd(scanner) {
-        return makeToken(scanner,T_EOF) ;
+impl Scanner {
+    fn advance(&mut self) -> char {
+        self.current += 1;
+        return self.code[self.current - 1];
     }
 
-    let c = advance(scanner);
-
-    if c.is_alphabetic() || c == '_' {
-        return identifier(scanner) ;
+    fn cmatch(&mut self, expected: char) -> bool {
+        if self.isAtEnd() {
+            return false;
+        }
+        if self.code[self.current] != expected {
+            return false;
+        }
+        self.current += 1;
+        return true;
     }
 
-    if c.is_numeric() {
-        return number(scanner) ;
+    fn peek(&self) -> char {
+        let current = self.current;
+        return self.code[current];
     }
 
-    return match c {
-        '(' => makeToken(scanner, T_LEFT_PAREN),
-        ')' => makeToken(scanner, T_RIGHT_PAREN),
-        '{' => makeToken(scanner, T_LEFT_BRACE),
-        '}' => makeToken(scanner, T_RIGHT_BRACE),
-        ';' => makeToken(scanner, T_SEMICOLON),
-        ',' => makeToken(scanner, T_COMMA),
-        '.' => makeToken(scanner, T_DOT),
-        '-' => makeToken(scanner, T_MINUS),
-        '+' => makeToken(scanner, T_PLUS),
-        '/' => makeToken(scanner, T_SLASH),
-        '*' => makeToken(scanner, T_STAR),
-        '!' =>
-            if cmatch(scanner, '=') {
-                makeToken(scanner,T_BANG_EQUAL)
-            } else {
-                makeToken(scanner, T_BANG)
-            }
-        ,
-        '=' => if cmatch(scanner, '=') {
-                makeToken(scanner, T_EQUAL_EQUAL)
-            }  else {
-                makeToken(scanner, T_EQUAL)
-            },
-        '>' =>
-            if cmatch(scanner, '=') {
-                makeToken(scanner, T_GREATER_EQUAL)
-            } else {
-                makeToken(scanner, T_GREATER)
-            },
-        '<' =>
-            if cmatch(scanner, '=') {
-                makeToken(scanner, T_LESS_EQUAL)
-            } else {
-                makeToken(scanner, T_LESS)
-            },
-        '"' => return string(scanner),
-        _   => errorToken(scanner, "Unexpected character".to_string())
+    fn peekNext(&self) -> char {
+        if self.isAtEnd() {
+            return '\0';
+        }
+        let current = self.current + 1;
+        return self.code[current];
     }
 
-}
+    pub fn scanToken(&mut self) -> Token {
+        self.skipWhitespace();
 
-pub fn isAtEnd(scanner: &Scanner) -> bool {
-    return scanner.code[scanner.current] == '\0' ;
-}
+        self.start = self.current;
+        if self.isAtEnd() {
+            return self.makeToken(T_EOF);
+        }
 
-pub fn makeToken(scanner: &Scanner, tokType: TokenType) -> Token {
+        let c = self.advance();
 
-    return Token {
-        name: SCANNER_NAME!(scanner),
-        toktype: tokType,
-        line: scanner.line,
-    }
-}
+        if c.is_alphabetic() || c == '_' {
+            return self.identifier();
+        }
 
-pub fn errorToken(scanner: &Scanner, message: String) -> Token {
-    return Token {
-        name: message,
-        toktype: T_ERROR,
-        line: scanner.line,
-    }
-}
+        if c.is_numeric() {
+            return self.number();
+        }
 
-fn skipWhitespace(scanner: &mut Scanner) {
-    loop {
-        let c = peek(scanner) ;
-        match c {
-              '\r'
-            | ' '
-            | '\t'  => {advance(scanner);},
-            '\n'    => {
-                scanner.line+=1 ;
-                advance(scanner) ;
-            },
-            '/'     => {
-                if peekNext(scanner) == '/' {
-                    while peek(scanner) != '\n' && !isAtEnd(scanner) {
-                        advance(scanner) ;
-                    }
+        return match c {
+            '(' => self.makeToken(T_LEFT_PAREN),
+            ')' => self.makeToken(T_RIGHT_PAREN),
+            '{' => self.makeToken(T_LEFT_BRACE),
+            '}' => self.makeToken(T_RIGHT_BRACE),
+            ';' => self.makeToken(T_SEMICOLON),
+            ',' => self.makeToken(T_COMMA),
+            '.' => self.makeToken(T_DOT),
+            '-' => self.makeToken(T_MINUS),
+            '+' => self.makeToken(T_PLUS),
+            '/' => self.makeToken(T_SLASH),
+            '*' => self.makeToken(T_STAR),
+            '!' =>
+                if self.cmatch('=') {
+                    self.makeToken(T_BANG_EQUAL)
                 } else {
-                    return ;
+                    self.makeToken(T_BANG)
                 }
+            ,
+            '=' => if self.cmatch('=') {
+                self.makeToken(T_EQUAL_EQUAL)
+            } else {
+                self.makeToken(T_EQUAL)
             },
-            _       => return
+            '>' =>
+                if self.cmatch('=') {
+                    self.makeToken(T_GREATER_EQUAL)
+                } else {
+                    self.makeToken(T_GREATER)
+                },
+            '<' =>
+                if self.cmatch('=') {
+                    self.makeToken(T_LESS_EQUAL)
+                } else {
+                    self.makeToken(T_LESS)
+                },
+            '"' => return self.string(),
+            _ => self.errorToken("Unexpected character".to_string())
         }
     }
-}
 
-fn identifierType(ident: &str) -> TokenType {
-
-    return match ident {
-        "and"       => T_AND,
-        "or"        => T_OR,
-        "if"        => T_IF,
-        "return"    => T_RETURN,
-        "let"       => T_LET,
-        "true"      => T_TRUE,
-        "for"       => T_FOR,
-        "while"     => T_WHILE,
-        "super"     => T_SUPER,
-        "class"     => T_CLASS,
-        "fn"        => T_FN,
-        "this"      => T_THIS,
-        "false"     => T_FALSE,
-        "nil"       => T_NIL,
-        "else"      => T_ELSE,
-        _ => T_IDENTIFIER
-    }
-}
-
-fn identifier(scanner: &mut Scanner) -> Token {
-    while peek(scanner).is_alphanumeric() || peek(scanner) == '_'  {
-        advance(scanner);
-    }
-    let ident:String = SCANNER_NAME!(scanner) ;
-    return makeToken(scanner, identifierType(ident.as_str())) ;
-}
-
-fn number(scanner: &mut Scanner) -> Token {
-    while peek(scanner).is_numeric() {
-        advance(scanner) ;
+    pub fn isAtEnd(&self) -> bool {
+        return self.code[self.current] == '\0';
     }
 
-    if peek(scanner) == '.' && peekNext(scanner).is_numeric() {
-        advance(scanner) ;
-        while peek(scanner).is_numeric() {
-            advance(scanner) ;
-        }
-        return makeToken(scanner, T_DOUBLE) ;
-    }
-
-    return makeToken(scanner, T_INTEGER) ;
-}
-
-fn string(scanner: &mut Scanner) -> Token{
-    while peek(scanner) != '"' && !isAtEnd(scanner) {
-        if peek(scanner) == '\n' {
-            scanner.line += 1;
-            advance(scanner);
+    pub fn makeToken(&self, tokType: TokenType) -> Token {
+        return Token {
+            name: SCANNER_NAME!(self),
+            toktype: tokType,
+            line: self.line,
         }
     }
-   if isAtEnd(scanner) {
-    return errorToken(scanner,"Unterminated string".to_string()) ;
-   }
 
-   advance(scanner) ;
-   return makeToken(scanner,T_STRING) ;
+    pub fn errorToken(&self, message: String) -> Token {
+        return Token {
+            name: message,
+            toktype: T_ERROR,
+            line: self.line,
+        }
+    }
 
+    fn skipWhitespace(&mut self) {
+        loop {
+            let c = self.peek();
+            match c {
+                '\r'
+                | ' '
+                | '\t' => { self.advance(); },
+                '\n' => {
+                    self.line += 1;
+                    self.advance();
+                },
+                '/' => {
+                    if self.peekNext() == '/' {
+                        while self.peek() != '\n' && !self.isAtEnd() {
+                            self.advance();
+                        }
+                    } else {
+                        return;
+                    }
+                },
+                _ => return
+            }
+        }
+    }
+
+    fn identifierType(&self,ident: &str) -> TokenType {
+        return match ident {
+            "and" => T_AND,
+            "or" => T_OR,
+            "if" => T_IF,
+            "return" => T_RETURN,
+            "let" => T_LET,
+            "true" => T_TRUE,
+            "for" => T_FOR,
+            "while" => T_WHILE,
+            "super" => T_SUPER,
+            "class" => T_CLASS,
+            "fn" => T_FN,
+            "this" => T_THIS,
+            "false" => T_FALSE,
+            "nil" => T_NIL,
+            "else" => T_ELSE,
+            _ => T_IDENTIFIER
+        }
+    }
+
+    fn identifier(&mut self) -> Token {
+        while self.peek().is_alphanumeric() || self.peek() == '_' {
+            self.advance();
+        }
+        let ident: String = SCANNER_NAME!(self);
+        return self.makeToken( self.identifierType(ident.as_str()));
+    }
+
+    fn number(&mut self) -> Token {
+        while self.peek().is_numeric() {
+            self.advance();
+        }
+
+        if self.peek() == '.' && self.peekNext().is_numeric() {
+            self.advance();
+            while self.peek().is_numeric() {
+                self.advance();
+            }
+            return self.makeToken( T_DOUBLE);
+        }
+
+        return self.makeToken( T_INTEGER);
+    }
+
+    fn string(&mut self) -> Token {
+        while self.peek() != '"' && !self.isAtEnd() {
+            if self.peek() == '\n' {
+                self.line += 1;
+                self.advance();
+            }
+        }
+        if self.isAtEnd() {
+            return self.errorToken("Unterminated string".to_string());
+        }
+
+        self.advance();
+        return self.makeToken( T_STRING);
+    }
 }

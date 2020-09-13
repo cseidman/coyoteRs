@@ -31,53 +31,44 @@ pub fn newChunk() -> Chunk {
     }
 }
 
-pub fn writeChunk(chunk: Chunk, byte: u8, line: usize) -> Chunk {
-
-    let mut chnk = chunk ;
-
-    // Check capacity - if we need more size
-    if chnk.code.capacity() < chnk.code.len()+1 {
-        chnk.code.reserve(CODE_CAPACITY) ;
-        chnk.lines.reserve(CODE_CAPACITY) ;
+impl Chunk {
+    pub fn writeChunk(&mut self, byte: u8, line: usize) {
+        
+        // Check capacity - if we need more size
+        if self.code.capacity() < self.code.len() + 1 {
+            self.code.reserve(CODE_CAPACITY);
+            self.lines.reserve(CODE_CAPACITY);
+        }
+        // Add the code to the end
+        self.code.push(byte);
+        self.lines.push(line);
+        
     }
-    // Add the code to the end
-    chnk.code.push(byte);
-    chnk.lines.push(line) ;
-    return chnk ;
 
-}
+    pub fn writeConstant(&mut self, Index: u16, line: usize) {
+        
+        // Check capacity - if we need more size
+        if self.code.capacity() < self.code.len() + 1 {
+            self.code.reserve(CODE_CAPACITY);
+            self.lines.reserve(CODE_CAPACITY);
+        }
+        // Add the code to the end
+        self.code.append(&mut u16::to_le_bytes(Index).to_vec());
+        self.code_ptr = self.code_ptr + 2;
+        self.lines.push(line);
+        self.lines.push(line);
 
-pub fn writeConstant(chunk: Chunk, Index: u16, line: usize) -> Chunk {
-
-    let mut chnk = chunk ;
-
-    // Check capacity - if we need more size
-    if chnk.code.capacity() < chnk.code.len()+1 {
-        chnk.code.reserve(CODE_CAPACITY) ;
-        chnk.lines.reserve(CODE_CAPACITY) ;
     }
-    // Add the code to the end
-    chnk.code.append(&mut u16::to_le_bytes(Index).to_vec());
-    chnk.code_ptr = chnk.code_ptr+2 ;
-    chnk.lines.push(line) ;
-    chnk.lines.push(line) ;
 
-    return chnk ;
+    pub fn addConstant(&mut self, value: Value) -> usize {
 
-}
-
-pub fn addConstant(chunk: Chunk, value: Value) -> Chunk {
-
-    let mut chnk = chunk ;
-
-    // Check capacity - if we need more size
-    if chnk.constants.capacity() < chnk.code.len()+1 {
-        chnk.constants.reserve(CONST_CAPACITY) ;
+        // Check capacity - if we need more size
+        if self.constants.capacity() < self.code.len() + 1 {
+            self.constants.reserve(CONST_CAPACITY);
+        }
+        // Add the code to the end
+        self.constants.push(value);
+        self.const_ptr += 1;
+        return self.code_ptr-1 ;
     }
-    // Add the code to the end
-    chnk.constants.push(value);
-    chnk.const_ptr = chnk.const_ptr+1 ;
-
-    return chnk ;
-
 }

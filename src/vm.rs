@@ -22,7 +22,7 @@ pub fn interpret(source: String) -> InterpretResult {
 
     let mut chunk = newChunk();
 
-    if !compile(source, &mut chunk) {
+    if !compile(source, chunk) {
         return InterpretResult::INTERPRET_COMPILE_ERROR ;
     }
 
