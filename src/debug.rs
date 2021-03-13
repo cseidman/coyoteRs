@@ -1,40 +1,51 @@
-
+use crate::opcodes::* ;
+use crate::opcodes::OpCode::* ;
 use crate::chunk::* ;
 use crate::value::* ;
+use crate::value::Value::* ;
 
 pub fn disassembleChunk(chunk: &Chunk, name: &str) {
 
     println!("== {} ==", name) ;
     let mut i = 0 ;
     while i < chunk.code.len() {
-        i = disassembleIntruction(chunk,i) ;
+        i = disassembleInstruction(chunk,i) ;
     }
+    println!("== Done ==") ;
 }
 
-pub fn disassembleIntruction(chunk: &Chunk, offset: usize) -> usize {
-    print!("{:04} ", offset) ;
-    if offset > 0 && chunk.lines[offset] == chunk.lines[offset-1] {
-        print!("   | ") ;
+pub fn disassembleInstruction(chunk: &Chunk, offset: usize) -> usize {
+    print!("{:04} ", offset);
+    if offset > 0 && chunk.lines[offset] == chunk.lines[offset - 1] {
+        print!("   | ");
     } else {
         print!("{:4} ", chunk.lines[offset]);
     }
 
-    let instruction = chunk.code[offset];
+    let raw_byte = chunk.code[offset];
+    let instruction = OpCode::from_byte(raw_byte);
+    let instruction_name = format!("{:?}", instruction);
     match instruction {
-        OP_RETURN => return simpleInstruction("OP_RETURN", offset),
-        OP_NEGATE => return simpleInstruction("OP_NEGATE", offset),
-        OP_ADD => return simpleInstruction("OP_ADD", offset),
-        OP_MULTIPLY => return simpleInstruction("OP_MULTIPLY", offset),
-        OP_DIVIDE => return simpleInstruction("OP_DIVIDE", offset),
-        OP_SUBTRACT => return simpleInstruction("OP_SUBTRACT", offset),
-        OP_CONSTANT => return constantInstruction("OP_CONSTANT", chunk, offset),
+        OP_RETURN
+        | OP_NEGATE
+        | OP_IADD
+        | OP_IMUL
+        | OP_IDIV
+        | OP_ISUB
+        | OP_NIL
+        | OP_TRUE
+        | OP_FALSE
+        | OP_NOT
+        | OP_EQUAL
+        | OP_GREATER
+        | OP_LESS => return simpleInstruction(instruction_name.as_str(), offset),
+        | OP_CONSTANT => constantInstruction(instruction_name.as_str(), chunk, offset),
         _ => {
-            println!("Unknown code {}", &instruction);
-            return offset + 1 ;
+            println!("Unknown code {:?}", raw_byte);
+            return offset + 1;
         }
     }
 }
-
 fn simpleInstruction(name: &str, offset: usize) -> usize {
     println!("{}", name);
     return offset + 1;
@@ -45,11 +56,20 @@ fn constantInstruction(name: &str, chunk: &Chunk ,offset: usize) -> usize {
     ar.copy_from_slice(&chunk.code[offset+1..offset+3] ) ;
     let constant = u16::from_le_bytes(ar) as usize;
     print!("{:24} {:4} '", name, constant);
-    printValue(chunk.constants[constant]);
+    let val = chunk.constants[constant] ;
+    printValue(val);
     print!("'\n");
     return offset + 3 ;
 }
 
 pub fn printValue(val: Value) {
-    print!("{}",val) ;
+
+    match val {
+        INTEGER(i) => print!("{}",i) ,
+        DOUBLE(i) => print!("{}",i) ,
+        NIL(_i) => print!("nil") ,
+        BOOL(b) => if b {print!("True")} else {print!{"False"}}  ,
+        _ => panic!("Unknown value type to print")
+    }
+
 }
